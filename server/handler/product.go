@@ -1,6 +1,12 @@
 package handler
 
-import "github.com/Xanvial/tutorial-grpc/server/usecase"
+import (
+	"context"
+
+	appproto "github.com/Xanvial/tutorial-grpc/proto"
+	"github.com/Xanvial/tutorial-grpc/server/model"
+	"github.com/Xanvial/tutorial-grpc/server/usecase"
+)
 
 type ProductServer struct {
 	productUC usecase.ProductClass
@@ -16,7 +22,7 @@ type ProductServer struct {
 	// 2. this approach, adding UnsafeXXXX will force compile error if new method is not implemented
 
 	// uncomment this, after correctly import the proto file
-	// appproto.UnsafeProductServiceServer
+	appproto.UnsafeProductServiceServer
 }
 
 func NewProductHandler(productUsecase usecase.ProductClass) *ProductServer {
@@ -26,3 +32,47 @@ func NewProductHandler(productUsecase usecase.ProductClass) *ProductServer {
 }
 
 // Put all other grpc handlers in here
+func (s *ProductServer) AddProduct(ctx context.Context, in *appproto.AddProductReq) (*appproto.AddProductResp, error) {
+	err := s.productUC.AddProduct(model.Product{
+		ID:          int(in.Product.GetId()),
+		Name:        in.Product.GetName(),
+		Description: in.Product.GetDescription(),
+	})
+
+	return &appproto.AddProductResp{
+		Success: true,
+	}, err
+}
+
+func (s *ProductServer) GetProducts(ctx context.Context, in *appproto.GetProductsReq) (*appproto.GetProductsResp, error) {
+	products := s.productUC.GetProducts()
+
+	resp := &appproto.GetProductsResp{}
+
+	for _, val := range products {
+		resp.Products = append(resp.Products, &appproto.Product{
+			Id:          int64(val.ID),
+			Name:        val.Name,
+			Description: val.Description,
+		})
+	}
+
+	return resp, nil
+}
+
+func (s *ProductServer) GetProduct(ctx context.Context, in *appproto.GetProductReq) (*appproto.GetProductResp, error) {
+	data, err := s.productUC.GetProduct(int(in.GetId()))
+	if err != nil {
+		return nil, err
+	}
+
+	resp := &appproto.GetProductResp{
+		Product: &appproto.Product{
+			Id:          int64(data.ID),
+			Name:        data.Name,
+			Description: data.Description,
+		},
+	}
+
+	return resp, nil
+}
